@@ -7,11 +7,12 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.UUID;
 
+import PkgException.HandException;
+import PkgException.exHand;
 import pkgPokerEnum.eCardNo;
 import pkgPokerEnum.eHandStrength;
 import pkgPokerEnum.eRank;
 import pkgPokerEnum.eSuit;
- 
 
 public class Hand {
 
@@ -28,6 +29,12 @@ public class Hand {
 		CardsInHand.add(c);
 	}
 
+	public void removeCards() {
+		for (Card c : CardsInHand) {
+			CardsInHand.remove(c);
+		}
+	}
+
 	public ArrayList<Card> getCardsInHand() {
 		return CardsInHand;
 	}
@@ -40,33 +47,74 @@ public class Hand {
 		CardsInHand.add(c);
 	}
 
-	public Hand EvaluateHand() {
+	public Hand EvaluateHand() throws HandException {
 
 		Hand h = null;
-
+		int j = 0;
 		ArrayList<Hand> ExplodedHands = ExplodeHands(this);
 
 		for (Hand hand : ExplodedHands) {
+			for (int i = 0; i < hand.getCardsInHand().size(); i++) {
+				j++;
+			}
+			if (j != 5) {
+				throw new HandException(j);
+			} else
+				j = 0;
 			hand = Hand.EvaluateHand(hand);
+
 		}
 
-		//	Figure out best hand
+		// Figure out best hand
 		Collections.sort(ExplodedHands, Hand.HandRank);
-		
-		//	Return best hand.  
-		//	TODO: Fix...  what to do if there is a tie?
+
+
 		return ExplodedHands.get(0);
 	}
 
-	
-	//TODO: one hand is passed in, 1, 52, 2704, etc are passed back
-	//		No jokers, 'ReturnHands' should have one hand
-	//		One Wild/joker 'ReturnHands' should have 52 hands, etc
-	
-	public static ArrayList<Hand> ExplodeHands(Hand h) {
+	public static Hand PickWinningHand(ArrayList<Hand> Hands) throws exHand {
+		Collections.sort(Hands, Hand.HandRank);
+		if (Hands.get(0).HandRank == Hands.get(1).HandRank) {
+			throw new exHand();
+		}
+		return Hands.get(0);
+	}
 
+	public static ArrayList<Hand> ExplodeHands(Hand h) {
 		ArrayList<Hand> ReturnHands = new ArrayList<Hand>();
+		ReturnHands.add(h);
+
+		for (Card c : h.getCardsInHand()) {
+			if ((c.getWild() == true) || (c.geteRank() == eRank.JOKER)) {
+				int index = h.getCardsInHand().indexOf(c);
+				ReturnHands = ReplaceCard(ReturnHands, index);
+			}
+		}
 		return ReturnHands;
+	}
+
+	private static ArrayList<Hand> ReplaceCard(ArrayList<Hand> ReturnHands, int index) {
+		ArrayList<Hand> newHands = new ArrayList<Hand>();
+		Deck deck = new Deck();
+
+		for (Hand h : ReturnHands) {
+			for (Card c : h.getCardsInHand()) {
+				if (h.getCardsInHand().indexOf(c) == index) {
+					for (Card newCard : deck.getCards()) {
+						Hand newHand = new Hand();
+						for (Card c1 : h.getCardsInHand()) {
+							if (h.getCardsInHand().indexOf(c1) != index) {
+								newHand.AddCardToHand(c1);
+							} else
+								newHand.AddCardToHand(newCard);
+						}
+						newHands.add(newHand);
+
+					}
+				}
+			}
+		}
+		return newHands;
 	}
 
 	private static Hand EvaluateHand(Hand h) {
@@ -198,6 +246,7 @@ public class Hand {
 		return isHandRoyalFlush;
 	}
 
+	// five cards of sequential rank, all of the same suit
 	public static boolean isHandStraightFlush(Hand h, HandScore hs) {
 
 		boolean isHandStraightFlush = false;
@@ -213,7 +262,25 @@ public class Hand {
 
 	}
 
-	// TODO: Implement This Method
+	public static boolean isHandFiveOfAKind(Hand h, HandScore hs) {
+
+		boolean isHandFiveOfAKind = false;
+
+		if (h.getCardsInHand().get(eCardNo.FirstCard.getCardNo()).geteRank() == h.getCardsInHand()
+				.get(eCardNo.FifthCard.getCardNo()).geteRank()) {
+			isHandFiveOfAKind = true;
+			hs.setHiHand(h.getCardsInHand().get(eCardNo.FirstCard.getCardNo()).geteRank());
+		}
+
+		if (isHandFiveOfAKind) {
+			hs.setHandStrength(eHandStrength.FiveOfAKind);
+			hs.setLoHand(null);
+		}
+
+		return isHandFiveOfAKind;
+	}
+
+	// containing four cards of the same rank and one card of another rank
 	public static boolean isHandFourOfAKind(Hand h, HandScore hs) {
 
 		boolean isHandFourOfAKind = false;
@@ -240,6 +307,7 @@ public class Hand {
 		return isHandFourOfAKind;
 	}
 
+	// containing five cards all of the same suit, not all of sequential rank
 	public static boolean isHandFlush(Hand h, HandScore hs) {
 
 		boolean bIsFlush = false;
@@ -259,6 +327,7 @@ public class Hand {
 		return bIsFlush;
 	}
 
+	// containing five cards of sequential rank, not all of the same suit
 	public static boolean isHandStraight(Hand h, HandScore hs) {
 
 		boolean bIsStraight = false;
@@ -273,6 +342,7 @@ public class Hand {
 		return bIsStraight;
 	}
 
+	// containing three cards of the same rank and two cards of two other ranks
 	public static boolean isHandThreeOfAKind(Hand h, HandScore hs) {
 
 		boolean isThreeOfAKind = false;
@@ -308,6 +378,8 @@ public class Hand {
 		return isThreeOfAKind;
 	}
 
+	// containing two cards of the same rank, two cards of another rank and one
+	// card of a third rank
 	public static boolean isHandTwoPair(Hand h, HandScore hs) {
 
 		boolean isHandTwoPair = false;
@@ -350,6 +422,8 @@ public class Hand {
 
 	}
 
+	// containing two cards of the same rank and three cards of three other
+	// ranks
 	public static boolean isHandPair(Hand h, HandScore hs) {
 
 		boolean isHandPair = false;
@@ -395,6 +469,8 @@ public class Hand {
 
 	}
 
+	// containing five cards not all of sequential rank or of the same suit, and
+	// none of which are of the same rank
 	public static boolean isHandHighCard(Hand h, HandScore hs) {
 
 		hs.setHandStrength(eHandStrength.HighCard);
@@ -421,6 +497,7 @@ public class Hand {
 		return isAcesAndEights;
 	}
 
+	// containing three cards of one rank and two cards of another rank
 	public static boolean isHandFullHouse(Hand h, HandScore hs) {
 
 		boolean isFullHouse = false;
